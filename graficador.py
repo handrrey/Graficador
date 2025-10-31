@@ -147,7 +147,98 @@ def drawCurvaBezier(screen, p0, p1, p2, p3, color):
         x = int((1 - t)**3 * p0[0] + 3 * (1 - t)**2 * t * p1[0] + 3 * (1 - t) * t**2 * p2[0] + t**3 * p3[0])
         y = int((1 - t)**3 * p0[1] + 3 * (1 - t)**2 * t * p1[1] + 3 * (1 - t) * t**2 * p2[1] + t**3 * p3[1])
         pygame.draw.circle(screen, color, (x, y), 1)
-# ----------------------------------
+
+# Rellenos --------
+def filled_rectangle(screen, x, y, width, height, color):
+    """
+    Dibuja un rectángulo RELLENO trazando líneas horizontales,
+    evitando pygame.draw y Surface.blit.
+    
+    Args:
+        screen: Superficie de pygame donde se dibujará.
+        x, y: Coordenadas de la esquina superior izquierda.
+        width: Ancho del rectángulo.
+        height: Alto del rectángulo.
+        color: Color del rectángulo en formato RGB.
+    """
+    x_end = x + width
+    y_end = y + height
+
+    for current_y in range(y, y_end):
+        line(screen, x, current_y, x_end - 1, current_y, color) 
+
+def line(screen, x1, y1, x2, y2, color):
+    """
+    Dibuja una línea horizontal de (x1, y1) a (x2, y2) usando set_at().
+    """
+    if y1 != y2:
+        return 
+
+    start_x = min(x1, x2)
+    end_x = max(x1, x2)
+    
+    # Recorremos cada píxel y lo coloreamos
+    for x in range(start_x, end_x + 1):
+        try:
+            # ¡La llamada de bajo nivel!
+            screen.set_at((x, y1), color)
+        except IndexError:
+            pass
+
+def filled_circle_bresenham(screen, xc, yc, r, color):
+    """
+    Implementa el algoritmo de Bresenham para dibujar círculos RELLENOS.
+    
+    Args:
+        screen: Superficie de pygame donde se dibujará.
+        xc, yc: Coordenadas del centro del círculo.
+        r: Radio del círculo.
+        color: Color del círculo en formato RGB.
+    """
+    x = 0
+    y = r
+    d = 3 - 2 * r
+
+    # Función auxiliar para dibujar una línea horizontal que rellene
+    def draw_horizontal_line(x_start, x_end, current_y, c):
+        line(screen, x_start, current_y, x_end, current_y, c)
+
+    draw_horizontal_line(xc - x, xc + x, yc + y, color) # Arriba
+    draw_horizontal_line(xc - x, xc + x, yc - y, color) # Abajo
+    draw_horizontal_line(xc - y, xc + y, yc + x, color) # Izquierda
+    draw_horizontal_line(xc - y, xc + y, yc - x, color) # Derecha
+
+    while x <= y:
+        if d < 0:
+            d = d + 4 * x + 6
+        else:
+            d = d + 4 * (x - y) + 10
+            y -= 1
+        x += 1
+
+        # Para cada (x, y) calculado por Bresenham, dibujamos 4 líneas horizontales
+        # Lineas horizontales simétricas en el octante superior e inferior
+        draw_horizontal_line(xc - x, xc + x, yc + y, color)
+        draw_horizontal_line(xc - x, xc + x, yc - y, color)
+        draw_horizontal_line(xc - y, xc + y, yc + x, color)
+        draw_horizontal_line(xc - y, xc + y, yc - x, color)
+
+        # Si x == y, los puntos se superponen, no es necesario dibujar dos veces
+        # Si r es 0, la primera línea es suficiente.
+        if x == y and r != 0:
+            draw_horizontal_line(xc - x, xc + x, yc + y, color)
+            draw_horizontal_line(xc - x, xc + x, yc - y, color)
+
+    if r > 0:
+        draw_horizontal_line(xc - r, xc + r, yc, color) # Línea horizontal central
+    elif r == 0: # Caso de un solo pixel si el radio es 0
+        try:
+            screen.set_at((xc, yc), color)
+        except IndexError:
+            pass
+# -----------------
+
+# ---------------------------------------
 
 
 class Boton:
@@ -223,7 +314,9 @@ color = (0,0,0)  # Color actual (negro por defecto)
 # Estados de las herramientas de dibujo
 linea = True      # Herramienta activa por defecto
 rectangulo = False
+rectangulo_rell = False
 circulo = False
+circulo_rell = False
 elipse = False
 triangulo = False
 curva = False
@@ -236,12 +329,14 @@ hoover = (100,160,210)    # Color cuando el mouse está sobre el botón
 # Creación de los botones de herramientas
 botonLinea = Boton(10, 10, 50, 50, "Imagenes/Linea.jpg", colorBoton, hoover, llenado=1)
 botonRectangulo = Boton(10, 70, 50, 50, "Imagenes/Rectangulo.jpeg", colorBoton, hoover, llenado=1)
-botonCirculo = Boton(10, 130, 50, 50, "Imagenes/Circulo.jpg", colorBoton, hoover, llenado=1)
-botonElipse = Boton(10, 190, 50, 50, "Imagenes/Elipse.jpg", colorBoton, hoover, llenado=1)
-botonTriangulo = Boton(10, 250, 50, 50, "Imagenes/Triangulo.jpg", colorBoton, hoover, llenado=1)
-botonCurva = Boton(10, 310, 50, 50, "Imagenes/Curva.jpg", colorBoton, hoover, llenado=1)
+botonRectangulo_rell = Boton(10, 130, 50, 50, "Imagenes/Rectangulo_Relleno.jpeg", colorBoton, hoover, llenado=1)
+botonCirculo = Boton(10, 190, 50, 50, "Imagenes/Circulo.jpg", colorBoton, hoover, llenado=1)
+botonCirculo_rell = Boton(10, 250, 50, 50, "Imagenes/Circulo_Relleno.jpeg", colorBoton, hoover, llenado=1)
+botonElipse = Boton(10, 310, 50, 50, "Imagenes/Elipse.jpg", colorBoton, hoover, llenado=1)
+botonTriangulo = Boton(10, 370, 50, 50, "Imagenes/Triangulo.jpg", colorBoton, hoover, llenado=1)
+botonCurva = Boton(10, 430, 50, 50, "Imagenes/Curva.jpg", colorBoton, hoover, llenado=1)
 
-botonVaciar = Boton(10, 370, 50, 50, "Imagenes/Vaciar.jpeg", colorBoton, hoover, llenado=1)
+botonVaciar = Boton(10, 550, 50, 50, "Imagenes/Vaciar.jpeg", colorBoton, hoover, llenado=1)
 
 # Creación de la paleta de colores
 colorRojo = Boton(960, 10, 50, 50, "", (255,0,0), (200,0,0), llenado=0)
@@ -266,8 +361,10 @@ while running:
     
     # Dibuja los botones de herramientas
     botonRectangulo.dibujar(screen)
+    botonRectangulo_rell.dibujar(screen)
     botonLinea.dibujar(screen)
     botonCirculo.dibujar(screen)
+    botonCirculo_rell.dibujar(screen)
     botonElipse.dibujar(screen)
     botonTriangulo.dibujar(screen)
     botonCurva.dibujar(screen)
@@ -297,7 +394,9 @@ while running:
             if(botonLinea.rect.collidepoint(event.pos)):
                 linea = True
                 rectangulo = False
+                rectangulo_rell = False
                 circulo = False
+                circulo_rell = False
                 elipse = False
                 triangulo = False
                 curva = False
@@ -306,25 +405,52 @@ while running:
             elif(botonRectangulo.rect.collidepoint(event.pos)):
                 linea = False
                 rectangulo = True
+                rectangulo_rell = False
                 circulo = False
+                circulo_rell = False
                 elipse = False
                 triangulo = False
                 curva = False
                 vaciar = False
                 print("Rectangulo seleccionada")
-            elif(botonCirculo.rect.collidepoint(event.pos)):
+            elif(botonRectangulo_rell.rect.collidepoint(event.pos)):
                 linea = False
                 rectangulo = False
-                circulo = True
+                rectangulo_rell = True
+                circulo = False
+                circulo_rell = False
                 elipse = False
                 triangulo = False
                 curva = False
                 vaciar = False
-                print("Circulo seleccionada")
+                print("Rectangulo rellenado seleccionada")
+            elif(botonCirculo.rect.collidepoint(event.pos)):
+                linea = False
+                rectangulo = False
+                rectangulo_rell = False
+                circulo = True
+                circulo_rell = False
+                elipse = False
+                triangulo = False
+                curva = False
+                vaciar = False
+            elif(botonCirculo_rell.rect.collidepoint(event.pos)):
+                linea = False
+                rectangulo = False
+                rectangulo_rell = False
+                circulo = False
+                circulo_rell = True
+                elipse = False
+                triangulo = False
+                curva = False
+                vaciar = False
+                print("Circulo rellenado seleccionada")
             elif(botonElipse.rect.collidepoint(event.pos)):
                 linea = False
                 rectangulo = False
+                rectangulo_rell = False
                 circulo = False
+                circulo_rell = False
                 elipse = True
                 triangulo = False
                 curva = False
@@ -333,7 +459,9 @@ while running:
             elif(botonTriangulo.rect.collidepoint(event.pos)):
                 linea = False
                 rectangulo = False
+                rectangulo_rell = False
                 circulo = False
+                circulo_rell = False
                 elipse = False
                 triangulo = True
                 curva = False
@@ -342,7 +470,9 @@ while running:
             elif(botonCurva.rect.collidepoint(event.pos)):
                 linea = False
                 rectangulo = False
+                rectangulo_rell = False
                 circulo = False
+                circulo_rell = False
                 elipse = False
                 triangulo = False
                 curva = True
@@ -351,7 +481,9 @@ while running:
             elif(botonVaciar.rect.collidepoint(event.pos)):
                 linea = False
                 rectangulo = False
+                rectangulo_rell = False
                 circulo = False
+                circulo_rell = False
                 elipse = False
                 triangulo = False
                 curva = False
@@ -407,6 +539,19 @@ while running:
             rectangle(screen, left, top, ancho, alto, color)
 
             dibujar = False
+        
+        elif rectangulo_rell:
+            left = min(inicio[0], final[0])
+            top = min(inicio[1], final[1])
+            ancho = abs(final[0] - inicio[0])
+            alto = abs(final[1] - inicio[1])
+
+            print("Relleno:", left, top, ancho, alto)
+
+            # ¡Aquí llamamos a tu algoritmo de relleno de bajo nivel!
+            filled_rectangle(screen, left, top, ancho, alto, color)
+
+            dibujar = False
 
         elif circulo:
             x = final[0] - inicio[0]
@@ -418,6 +563,21 @@ while running:
             r = math.sqrt(x**2 + y**2)
 
             circleBresenham(screen, int(centroX), int(centroY), int(r), color)
+
+            dibujar = False
+
+        elif circulo_rell:
+            x_diff = final[0] - inicio[0]
+            y_diff = final[1] - inicio[1]
+
+            centroX = (inicio[0] + final[0]) // 2
+            centroY = (inicio[1] + final[1]) // 2
+
+            r = math.sqrt(x_diff**2 + y_diff**2) / 2 # Radio es la mitad de la distancia
+
+            print("Círculo Relleno:", int(centroX), int(centroY), int(r))
+
+            filled_circle_bresenham(screen, int(centroX), int(centroY), int(r), color)
 
             dibujar = False
 
